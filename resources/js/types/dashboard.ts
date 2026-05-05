@@ -1,4 +1,4 @@
-export type StatusIncendio = 'ativo' | 'em_combate' | 'contido' | 'resolvido';
+export type StatusIncendio = 'ativo' | 'em_combate' | 'contido' | 'resolvido' | 'inviavel';
 
 export type NivelRisco = 'alto' | 'medio' | 'baixo';
 

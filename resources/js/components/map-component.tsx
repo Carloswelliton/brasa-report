@@ -31,6 +31,7 @@ const statusLabels: Record<StatusIncendio, string> = {
     em_combate: 'EM COMBATE',
     contido: 'CONTIDO',
     resolvido: 'RESOLVIDO',
+    inviavel: 'INVIÁVEL',
 };
 
 function getMarkerColor(status: StatusIncendio): string {
@@ -43,6 +44,8 @@ function getMarkerColor(status: StatusIncendio): string {
             return '#eab308';
         case 'resolvido':
             return '#22c55e';
+        case 'inviavel':
+            return '#6b7280';
     }
 }
 

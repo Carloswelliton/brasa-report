@@ -8,14 +8,5 @@ enum StatusIncendio: string
     case EmCombate = 'em_combate';
     case Contido = 'contido';
     case Resolvido = 'resolvido';
-
-    public function proximo(): ?self
-    {
-        return match ($this) {
-            self::Ativo => self::EmCombate,
-            self::EmCombate => self::Contido,
-            self::Contido => self::Resolvido,
-            self::Resolvido => null,
-        };
-    }
+    case Inviavel = 'inviavel';
 }

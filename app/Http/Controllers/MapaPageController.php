@@ -18,8 +18,14 @@ class MapaPageController extends Controller
 
     public function __invoke(Request $request): Response
     {
-        $incendios = Incendio::query()
-            ->with(['area', 'localCritico'])
+        $query = Incendio::query()->with(['area', 'localCritico']);
+
+        if ($request->filled('status')) {
+            $statuses = explode(',', $request->string('status')->value());
+            $query->whereIn('status', $statuses);
+        }
+
+        $incendios = $query
             ->orderByDesc('detectado_em')
             ->get()
             ->map(fn (Incendio $i): array => [

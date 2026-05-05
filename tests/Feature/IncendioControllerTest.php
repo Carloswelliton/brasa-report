@@ -325,35 +325,49 @@ test('test_fluxo_linear_completo_de_status', function () {
     expect($incendio->fresh()->status)->toBe(StatusIncendio::Resolvido);
 });
 
-test('test_rejeita_transicao_fora_de_ordem', function () {
+test('permite_transicao_livre_entre_status', function () {
     $incendio = Incendio::factory()->create(['status' => StatusIncendio::Ativo]);
 
     $this->patchJson('/api/incendios/'.$incendio->id.'/status', [
         'status' => 'contido',
+    ], incendioAuthHeaders())
+        ->assertOk();
+
+    expect($incendio->fresh()->status)->toBe(StatusIncendio::Contido);
+});
+
+test('permite_retrocesso_de_status', function () {
+    $incendio = Incendio::factory()->create(['status' => StatusIncendio::EmCombate]);
+
+    $this->patchJson('/api/incendios/'.$incendio->id.'/status', [
+        'status' => 'ativo',
+    ], incendioAuthHeaders())
+        ->assertOk();
+
+    expect($incendio->fresh()->status)->toBe(StatusIncendio::Ativo);
+});
+
+test('rejeita_inviavel_sem_observacao', function () {
+    $incendio = Incendio::factory()->create(['status' => StatusIncendio::Ativo]);
+
+    $this->patchJson('/api/incendios/'.$incendio->id.'/status', [
+        'status' => 'inviavel',
     ], incendioAuthHeaders())
         ->assertUnprocessable();
 
     expect($incendio->fresh()->status)->toBe(StatusIncendio::Ativo);
 });
 
-test('test_rejeita_retrocesso_de_status', function () {
-    $incendio = Incendio::factory()->create(['status' => StatusIncendio::EmCombate]);
+test('aceita_inviavel_com_observacao', function () {
+    $incendio = Incendio::factory()->create(['status' => StatusIncendio::Ativo]);
 
     $this->patchJson('/api/incendios/'.$incendio->id.'/status', [
-        'status' => 'ativo',
+        'status' => 'inviavel',
+        'observacao' => 'Incêndio em morraria — acesso impossível.',
     ], incendioAuthHeaders())
-        ->assertUnprocessable();
+        ->assertOk();
 
-    expect($incendio->fresh()->status)->toBe(StatusIncendio::EmCombate);
-});
-
-test('test_resolvido_nao_pode_avancar', function () {
-    $incendio = Incendio::factory()->create(['status' => StatusIncendio::Resolvido]);
-
-    $this->patchJson('/api/incendios/'.$incendio->id.'/status', [
-        'status' => 'ativo',
-    ], incendioAuthHeaders())
-        ->assertUnprocessable();
+    expect($incendio->fresh()->status)->toBe(StatusIncendio::Inviavel);
 });
 
 test('test_brigadista_nao_pode_atualizar_status', function () {

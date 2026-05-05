@@ -26,6 +26,10 @@ const statusConfig: Record<
         label: 'Resolvido',
         className: 'border-resolved/30 bg-resolved/15 text-resolved',
     },
+    inviavel: {
+        label: 'Inviável',
+        className: 'border-muted-foreground/30 bg-muted text-muted-foreground',
+    },
 };
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {

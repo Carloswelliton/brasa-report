@@ -209,6 +209,7 @@ class IncendioController extends Controller
             'dados_json' => [
                 'status_anterior' => $statusAnterior->value,
                 'status_novo' => $statusNovo->value,
+                'observacao' => $request->validated('observacao'),
             ],
         ]);
 
@@ -287,11 +288,16 @@ class IncendioController extends Controller
             if ($log->acao === 'atualizacao_status_incendio') {
                 $ant = $dados['status_anterior'] ?? '—';
                 $novo = $dados['status_novo'] ?? '—';
+                $observacao = $dados['observacao'] ?? null;
+                $detalhe = "{$ant} → {$novo}";
+                if ($observacao) {
+                    $detalhe .= " — {$observacao}";
+                }
                 $eventos[] = [
                     'em' => $log->criado_em?->toIso8601String(),
                     'tipo' => 'mudanca_status',
                     'rotulo' => 'Status do incêndio alterado',
-                    'detalhe' => "{$ant} → {$novo}",
+                    'detalhe' => $detalhe,
                     'usuario_nome' => $nomeUsuario,
                 ];
             } elseif ($log->acao === 'atualizacao_risco_incendio') {
