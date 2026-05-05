@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -8,6 +9,7 @@ type StatsCardProps = {
     icon: LucideIcon;
     variant?: 'default' | 'critical' | 'warning' | 'success';
     subtitle?: string;
+    href?: string;
 };
 
 const variantStyles = {
@@ -30,35 +32,45 @@ export function StatsCard({
     icon: Icon,
     variant = 'default',
     subtitle,
+    href,
 }: StatsCardProps) {
-    return (
-        <div
-            className={cn(
-                'glass-panel rounded-xl p-4 transition-all hover:scale-[1.02]',
-                variantStyles[variant],
-            )}
-        >
-            <div className="flex items-start justify-between">
-                <div>
-                    <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-                        {label}
+    const className = cn(
+        'glass-panel rounded-xl p-4 transition-all hover:scale-[1.02]',
+        href && 'cursor-pointer hover:ring-1 hover:ring-border',
+        variantStyles[variant],
+    );
+
+    const content = (
+        <div className="flex items-start justify-between">
+            <div>
+                <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                    {label}
+                </p>
+                <p className="mt-1 text-2xl font-bold">{value}</p>
+                {subtitle ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        {subtitle}
                     </p>
-                    <p className="mt-1 text-2xl font-bold">{value}</p>
-                    {subtitle ? (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                            {subtitle}
-                        </p>
-                    ) : null}
-                </div>
-                <div
-                    className={cn(
-                        'rounded-lg p-2.5',
-                        iconVariantStyles[variant],
-                    )}
-                >
-                    <Icon className="size-5" />
-                </div>
+                ) : null}
+            </div>
+            <div
+                className={cn(
+                    'rounded-lg p-2.5',
+                    iconVariantStyles[variant],
+                )}
+            >
+                <Icon className="size-5" />
             </div>
         </div>
     );
+
+    if (href) {
+        return (
+            <Link href={href} className={className} prefetch>
+                {content}
+            </Link>
+        );
+    }
+
+    return <div className={className}>{content}</div>;
 }

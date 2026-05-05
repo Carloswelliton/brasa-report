@@ -161,7 +161,13 @@ export default function Alertas() {
         alertasIniciais.meta ?? alertasVazio.meta,
     );
     const [filtroTipo, setFiltroTipo] = useState<TipoAlerta | null>(null);
-    const [filtroEntregue, setFiltroEntregue] = useState<boolean | null>(null);
+    const [filtroEntregue, setFiltroEntregue] = useState<boolean | null>(() => {
+        const params = new URLSearchParams(window.location.search);
+        const v = params.get('entregue');
+        if (v === 'false') return false;
+        if (v === 'true') return true;
+        return null;
+    });
     const [carregando, setCarregando] = useState(false);
     const [carregandoMais, setCarregandoMais] = useState(false);
     const [acaoId, setAcaoId] = useState<string | null>(null);

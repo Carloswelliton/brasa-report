@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -17,7 +17,7 @@ import { StatsCard } from '@/components/stats-card';
 import { StatusBadge } from '@/components/status-badge';
 import AppLayout from '@/layouts/app-layout';
 import axios from '@/lib/axios-setup';
-import { dashboard } from '@/routes';
+import { alertas as alertasRoute, dashboard, mapa as mapaRoute } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
 import type { DashboardDados } from '@/types/dashboard';
 
@@ -109,23 +109,27 @@ export default function Dashboard({ dados }: DashboardProps) {
                         value={dashboardDados.incendios.ativos}
                         icon={Flame}
                         variant="critical"
+                        href={`${mapaRoute().url}?status=ativo,em_combate`}
                     />
                     <StatsCard
                         label="Alertas Pendentes"
                         value={dashboardDados.alertas.nao_entregues}
                         icon={Bell}
                         variant="warning"
+                        href={`${alertasRoute().url}?entregue=false`}
                     />
                     <StatsCard
                         label="Ocorrências Contidas"
                         value={dashboardDados.incendios.contidos}
                         icon={ShieldAlert}
+                        href={`${mapaRoute().url}?status=contido`}
                     />
                     <StatsCard
                         label="Incêndios Resolvidos"
                         value={dashboardDados.incendios.resolvidos}
                         icon={Users}
                         variant="success"
+                        href={`${mapaRoute().url}?status=resolvido`}
                     />
                 </motion.div>
 
@@ -218,8 +222,10 @@ export default function Dashboard({ dados }: DashboardProps) {
                         </h3>
                         <div className="space-y-3">
                             {dashboardDados.incendios_recentes.map((inc) => (
-                                <div
+                                <Link
                                     key={inc.id}
+                                    href={`${mapaRoute().url}?incendio=${inc.id}`}
+                                    prefetch
                                     className="flex items-start gap-3 rounded-lg bg-secondary/50 p-3 transition-colors hover:bg-secondary/80"
                                 >
                                     <div className="mt-0.5">
@@ -245,7 +251,7 @@ export default function Dashboard({ dados }: DashboardProps) {
                                             — {inc.registrado_por}
                                         </p>
                                     </div>
-                                </div>
+                                </Link>
                             ))}
                             {dashboardDados.incendios_recentes.length === 0 ? (
                                 <p className="text-xs text-muted-foreground">
