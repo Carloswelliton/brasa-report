@@ -10,6 +10,15 @@ import {
     Thermometer,
     X,
 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -66,11 +75,13 @@ type PageProps = {
     podeGerenciar: boolean;
 };
 
-const statusFlowLabels: Partial<Record<StatusIncendio, string>> = {
-    ativo: 'Marcar como Em Combate',
-    em_combate: 'Marcar como Contido',
-    contido: 'Marcar como Resolvido',
-};
+const todosStatus: { value: StatusIncendio; label: string }[] = [
+    { value: 'ativo', label: 'Ativo' },
+    { value: 'em_combate', label: 'Em Combate' },
+    { value: 'contido', label: 'Contido' },
+    { value: 'resolvido', label: 'Resolvido' },
+    { value: 'inviavel', label: 'Inviável' },
+];
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Mapa', href: mapaRoute().url },
@@ -94,6 +105,31 @@ export default function Mapa() {
     const { incendios, condicoesClimaticas, podeGerenciar } =
         usePage<PageProps>().props;
 
+    const [filtrosAtivos, setFiltrosAtivos] = useState<Set<StatusIncendio>>(() => {
+        const params = new URLSearchParams(window.location.search);
+        const s = params.get('status');
+        if (s) {
+            return new Set(s.split(',') as StatusIncendio[]);
+        }
+        return new Set<StatusIncendio>();
+    });
+
+    const incendiosFiltrados = filtrosAtivos.size === 0
+        ? incendios
+        : incendios.filter((i) => filtrosAtivos.has(i.status));
+
+    const toggleFiltro = (status: StatusIncendio) => {
+        setFiltrosAtivos((prev) => {
+            const next = new Set(prev);
+            if (next.has(status)) {
+                next.delete(status);
+            } else {
+                next.add(status);
+            }
+            return next;
+        });
+    };
+
     const [painelAberto, setPainelAberto] = useState(false);
 
     const [incendioModalOpen, setIncendioModalOpen] = useState(false);
@@ -103,6 +139,8 @@ export default function Mapa() {
     const [selectedIncendio, setSelectedIncendio] =
         useState<MapIncendio | null>(null);
     const [statusLoading, setStatusLoading] = useState(false);
+    const [novoStatus, setNovoStatus] = useState<StatusIncendio | null>(null);
+    const [observacao, setObservacao] = useState('');
     const [historicoData, setHistoricoData] = useState<HistoricoPayload | null>(
         null,
     );
@@ -110,16 +148,27 @@ export default function Mapa() {
 
     const openIncendioModal = useCallback(
         (incendioId: string) => {
-            const inc = incendios.find((i) => i.id === incendioId);
-            if (inc) {
-                setSelectedIncendio(inc);
-                setModalAba('detalhes');
-                setHistoricoData(null);
-                setIncendioModalOpen(true);
-            }
+            const inc = incendios.find((i) => i.id === incendioId) ?? null;
+            if (!inc) return;
+            setSelectedIncendio(inc);
+            setModalAba('detalhes');
+            setHistoricoData(null);
+            setNovoStatus(null);
+            setObservacao('');
+            setIncendioModalOpen(true);
         },
         [incendios],
     );
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const incendioId = params.get('incendio');
+        if (incendioId) {
+            openIncendioModal(incendioId);
+        }
+    // Executa apenas no mount — incendios é estável após o carregamento inicial
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         if (!incendioModalOpen || !selectedIncendio || modalAba !== 'historico') {
@@ -153,24 +202,13 @@ export default function Mapa() {
         };
     }, [incendioModalOpen, selectedIncendio?.id, modalAba]);
 
-    const avancarStatus = useCallback(async () => {
-        if (!selectedIncendio) {
+    const alterarStatus = useCallback(async () => {
+        if (!selectedIncendio || !novoStatus) {
             return;
         }
 
-        const next = statusFlowLabels[selectedIncendio.status];
-        if (!next) {
-            return;
-        }
-
-        const statusMap: Record<string, StatusIncendio> = {
-            ativo: 'em_combate',
-            em_combate: 'contido',
-            contido: 'resolvido',
-        };
-
-        const novoStatus = statusMap[selectedIncendio.status];
-        if (!novoStatus) {
+        if (novoStatus === 'inviavel' && !observacao.trim()) {
+            toast.error('Observação obrigatória para declarar incêndio como inviável.');
             return;
         }
 
@@ -178,7 +216,7 @@ export default function Mapa() {
         try {
             await axios.patch(
                 `/api/incendios/${selectedIncendio.id}/status`,
-                { status: novoStatus },
+                { status: novoStatus, observacao: observacao.trim() || null },
             );
             toast.success('Status atualizado com sucesso');
             setIncendioModalOpen(false);
@@ -188,19 +226,19 @@ export default function Mapa() {
         } finally {
             setStatusLoading(false);
         }
-    }, [selectedIncendio]);
+    }, [selectedIncendio, novoStatus, observacao]);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Mapa" />
             <div className="relative isolate h-[calc(100dvh-5rem)] min-h-[420px] w-full overflow-hidden rounded-xl border border-border/60">
                 <MapComponent
-                    incendios={incendios}
+                    incendios={incendiosFiltrados}
                     className="absolute inset-0"
                     onMarkerClick={openIncendioModal}
                 />
 
-                <div className="absolute top-4 left-4 z-1000">
+                <div className="absolute top-4 left-4 z-1000 flex items-center gap-2">
                     <Button
                         type="button"
                         size="sm"
@@ -214,6 +252,46 @@ export default function Mapa() {
                         )}
                         {painelAberto ? 'Fechar' : 'Ocorrências'}
                     </Button>
+
+                    <div className="flex items-center gap-1.5 rounded-lg border border-border bg-card/95 px-2.5 py-1.5 shadow-lg backdrop-blur-sm">
+                        {todosStatus.map((s) => {
+                            const cores: Record<string, string> = {
+                                ativo: 'bg-critical',
+                                em_combate: 'bg-[#f97316]',
+                                contido: 'bg-warning',
+                                resolvido: 'bg-resolved',
+                                inviavel: 'bg-muted-foreground/60',
+                            };
+                            const ativo = filtrosAtivos.has(s.value);
+                            return (
+                                <button
+                                    key={s.value}
+                                    type="button"
+                                    title={s.label}
+                                    onClick={() => toggleFiltro(s.value)}
+                                    className={cn(
+                                        'flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all',
+                                        ativo
+                                            ? 'bg-secondary text-foreground shadow-sm'
+                                            : 'text-muted-foreground hover:text-foreground',
+                                    )}
+                                >
+                                    <span className={cn('size-2 rounded-full', cores[s.value])} />
+                                    <span className="hidden sm:inline">{s.label}</span>
+                                </button>
+                            );
+                        })}
+                        {filtrosAtivos.size > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => setFiltrosAtivos(new Set())}
+                                className="ml-1 text-xs text-muted-foreground hover:text-foreground"
+                                title="Limpar filtros"
+                            >
+                                <X className="size-3" />
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <div className="absolute top-4 right-14 z-1000 max-w-[220px] rounded-lg border border-border bg-card/95 p-3 shadow-md backdrop-blur-sm">
@@ -288,6 +366,10 @@ export default function Mapa() {
                             <span className="size-3 rounded-full bg-resolved" />
                             <span className="text-xs">Resolvido</span>
                         </div>
+                        <div className="flex items-center gap-2">
+                            <span className="size-3 rounded-full bg-muted-foreground/60" />
+                            <span className="text-xs">Inviável</span>
+                        </div>
                     </div>
                 </div>
 
@@ -302,14 +384,15 @@ export default function Mapa() {
                         >
                             <div className="space-y-3 p-4">
                                 <h3 className="text-sm font-semibold">
-                                    Ocorrências ({incendios.length})
+                                    Ocorrências ({incendiosFiltrados.length}
+                                    {filtrosAtivos.size > 0 && ` de ${incendios.length}`})
                                 </h3>
-                                {incendios.length === 0 ? (
+                                {incendiosFiltrados.length === 0 ? (
                                     <p className="text-xs text-muted-foreground">
-                                        Nenhuma ocorrência ativa.
+                                        Nenhuma ocorrência para os filtros selecionados.
                                     </p>
                                 ) : (
-                                    incendios.map((inc) => (
+                                    incendiosFiltrados.map((inc) => (
                                         <div
                                             key={inc.id}
                                             className="cursor-pointer rounded-lg bg-secondary/50 p-3 transition-colors hover:bg-secondary/80"
@@ -488,29 +571,64 @@ export default function Mapa() {
                                         </div>
                                     </div>
 
-                                    {podeGerenciar &&
-                                        statusFlowLabels[
-                                            selectedIncendio.status
-                                        ] && (
-                                            <DialogFooter>
-                                                <Button
-                                                    onClick={avancarStatus}
-                                                    disabled={statusLoading}
-                                                    className="w-full"
+                                    {podeGerenciar && (
+                                        <div className="space-y-3 border-t border-border pt-3">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs text-muted-foreground">
+                                                    Alterar status
+                                                </Label>
+                                                <Select
+                                                    value={novoStatus ?? ''}
+                                                    onValueChange={(v) => {
+                                                        setNovoStatus(v as StatusIncendio);
+                                                        setObservacao('');
+                                                    }}
                                                 >
-                                                    {statusLoading
-                                                        ? 'Atualizando...'
-                                                        : statusFlowLabels[
-                                                              selectedIncendio
-                                                                  .status
-                                                          ]}
-                                                </Button>
-                                            </DialogFooter>
-                                        )}
+                                                    <SelectTrigger className="w-full">
+                                                        <SelectValue placeholder="Selecionar novo status…" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {todosStatus
+                                                            .filter((s) => s.value !== selectedIncendio.status)
+                                                            .map((s) => (
+                                                                <SelectItem key={s.value} value={s.value}>
+                                                                    {s.label}
+                                                                </SelectItem>
+                                                            ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
 
-                                    {selectedIncendio.status === 'resolvido' && (
-                                        <div className="rounded-lg border border-resolved/30 bg-resolved/10 p-3 text-center text-sm text-resolved">
-                                            Este incêndio já foi resolvido.
+                                            {novoStatus && (
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-xs text-muted-foreground">
+                                                        Observação{novoStatus === 'inviavel' ? ' (obrigatória)' : ' (opcional)'}
+                                                    </Label>
+                                                    <Textarea
+                                                        value={observacao}
+                                                        onChange={(e) => setObservacao(e.target.value)}
+                                                        placeholder={
+                                                            novoStatus === 'inviavel'
+                                                                ? 'Descreva o motivo da inviabilidade…'
+                                                                : 'Adicione uma observação…'
+                                                        }
+                                                        rows={3}
+                                                        className="resize-none text-sm"
+                                                    />
+                                                </div>
+                                            )}
+
+                                            {novoStatus && (
+                                                <DialogFooter>
+                                                    <Button
+                                                        onClick={alterarStatus}
+                                                        disabled={statusLoading || (novoStatus === 'inviavel' && !observacao.trim())}
+                                                        className="w-full"
+                                                    >
+                                                        {statusLoading ? 'Atualizando...' : 'Confirmar alteração'}
+                                                    </Button>
+                                                </DialogFooter>
+                                            )}
                                         </div>
                                     )}
                                 </>
