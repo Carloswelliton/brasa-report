@@ -17,10 +17,15 @@ export default defineConfig({
             },
         }),
         tailwindcss(),
-        wayfinder({
-            formVariants: true,
-            generate: false,
-        }),
+        // Wayfinder será ignorado se SKIP_WAYFINDER estiver definido
+        ...(process.env.SKIP_WAYFINDER
+            ? []
+            : [
+                  wayfinder({
+                      formVariants: true,
+                      generate: false,
+                  }),
+              ]),
     ],
     esbuild: {
         jsx: 'automatic',
